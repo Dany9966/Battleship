@@ -341,7 +341,7 @@ void displayFaces(unsigned int face1[], unsigned int face2[]){
  */
 int lostCheck(int matrix[8][8]){
   for(int i = 0; i < 8; i++){     //se parcurge matricea, iar la prima valoare de 1 ( exista nava nedistrusa ) functia returneaza 0
-    for(int j = 0; i < 8; j++){
+    for(int j = 0; j < 8; j++){
       if(matrix[i][j] == 1){
         return 0;
       }
