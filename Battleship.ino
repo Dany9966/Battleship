@@ -75,7 +75,7 @@ void initializareShips(int matrix[8][8]){
   int row = random(0,8); //se genereaza orice rand
   int column = random(0,5); //se genereaza pana la coloana 4 deoarece nava are o marime de 4 leduri
   for(int i = column; i < column + 4; i++){
-    Serial.println(i);
+    //Serial.println(i);
     matrix[row][i] = 1; //valorile alese se seteaza pe 1, acestea se folosesc pentru a aprinde ledurile
   }
 
@@ -93,7 +93,7 @@ void initializareShips(int matrix[8][8]){
   }
   
   for(int i = row1; i < row1 + 3; i++){
-    Serial.println(i);
+    //Serial.println(i);
     matrix[i][column1] = 1; //valorile alese se seteaza pe 1
   }
 }
@@ -114,7 +114,7 @@ void afisareMatrix(int matrix[8][8]){
         binary += (matrix[i][j] << (7-j));
       }
     }
-    Serial.println();
+    //Serial.println();
     //Serial.print("Row: ");  Serial.print(i);  Serial.print(": "); Serial.print(binary); Serial.println();   Serial.println();
     
     //Serial.print("row: "); Serial.print(i); Serial.print(";");  Serial.print(binary); Serial.println();
@@ -123,6 +123,16 @@ void afisareMatrix(int matrix[8][8]){
   }
 
   
+}
+
+void debugCPU(){
+  Serial.println("Matrice oponent:");
+  for(int i = 0; i < 8; i++){
+    for(int j = 0; j < 8; j++){
+      Serial.print(cpuMatrix[i][j]);
+    }
+    Serial.println();
+  }
 }
 
 void setup() {
@@ -311,6 +321,7 @@ void moveDown(){
  *  
  */
 void displayFaces(unsigned int face1[], unsigned int face2[]){ 
+  lc.clearDisplay();
   delay(200);
   for(int i = 0; i < 8; i++){
     lc.setRow(0, i, face1[i]);
@@ -328,16 +339,16 @@ void displayFaces(unsigned int face1[], unsigned int face2[]){
  *  matrix - matricea de verificat
  *  
  */
-boolean lostCheck(int matrix[8][8]){
-  for(int i = 0; i < 8; i++){     //se parcurge matricea, iar la prima valoare de 1 ( exista nava nedistrusa ) functia returneaza fals
+int lostCheck(int matrix[8][8]){
+  for(int i = 0; i < 8; i++){     //se parcurge matricea, iar la prima valoare de 1 ( exista nava nedistrusa ) functia returneaza 0
     for(int j = 0; i < 8; j++){
       if(matrix[i][j] == 1){
-        return false;
+        return 0;
       }
     }
   }
-                                  // altfel se returneaza true, iar jocul se termina
-  return true;
+                                  // altfel se returneaza 1, iar jocul se termina
+  return 1;
 }
 
 void loop() {
@@ -357,16 +368,16 @@ void loop() {
     //daca se apasa butonul dreapta
     if(rightButtonState == HIGH){
       moveRight();
-      Serial.println("right pressed");
+      //Serial.println("right pressed");
     }
 
     if(downButtonState == HIGH){ //daca se apasa butonul down
       moveDown(); 
-      Serial.println("down pressed");
+      //Serial.println("down pressed");
     }
 
     if(fireButtonState == HIGH){ //daca se apasa butonul fire
-      Serial.println("fire pressed");
+      //Serial.println("fire pressed");
       
       playerShot(pRow, pColumn); //se incearca shot-ul prin functia playerShot
       break;
