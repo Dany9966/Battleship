@@ -159,6 +159,7 @@ void setup() {
   delay(200);
   afisareMatrix(playerMatrix); //afisarea efectiva a ledurilor
   Serial.println();
+  debugCPU();
   
 
   //setarea butoanelor ca pini de input
