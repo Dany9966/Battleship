@@ -322,7 +322,7 @@ void moveDown(){
  *  
  */
 void displayFaces(unsigned int face1[], unsigned int face2[]){ 
-  lc.clearDisplay();
+  
   delay(200);
   for(int i = 0; i < 8; i++){
     lc.setRow(0, i, face1[i]);
