@@ -43,10 +43,10 @@ int cpuMatrix[8][8];
 unsigned int smileyFace[8] = { //fata zambareata
   B00111100,
   B01000010,
-  B10011001,
   B10100101,
   B10000001,
   B10100101,
+  B10011001,
   B01000010,
   B00111100
 };
@@ -270,11 +270,17 @@ void CPUShot(){
           lastHit = 1;
           cpuPrev[0] = row;
           cpuPrev[1] = column;
-          cpuNextPos[0] = row - 1; cpuNextPos[1] = column;  //upper
-          cpuNextPos[2] = row; cpuNextPos[3] = column + 1;  //to the right
-          cpuNextPos[4] = row + 1; cpuNextPos[5] = column;  //lower
-          cpuNextPos[6] = row; cpuNextPos[7] = column - 1;  //to the left
+
+          if(cpuVertical != -1){
+            cpuNextPos[0] = row - 1; cpuNextPos[1] = column;  //upper
+            cpuNextPos[4] = row + 1; cpuNextPos[5] = column;  //lower
+          }
+
+          if(cpuHorizontal != -1){
+            cpuNextPos[2] = row; cpuNextPos[3] = column + 1;  //to the right
           
+            cpuNextPos[6] = row; cpuNextPos[7] = column - 1;  //to the left
+          }
         }
           
          break;
@@ -344,8 +350,7 @@ void CPUShot(){
         if(playerMatrix[row][column] == 1){
           if(cpuVertical){
             lastHit = 0;
-            cpuVertical = 0;
-            cpuHorizontal = 0;
+            cpuVertical = -1;
           }
           else if(cpuHorizontal){
               lastHit = 3;
@@ -406,7 +411,7 @@ void CPUShot(){
                 cpuNextPos[6] = row; cpuNextPos[7] = column - 3;*/
 
                 lastHit = 0;
-                cpuHorizontal = 0;
+                cpuHorizontal = -1;
     
           }
           
