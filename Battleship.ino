@@ -43,10 +43,10 @@ int cpuMatrix[8][8];
 unsigned int smileyFace[8] = { //fata zambareata
   B00111100,
   B01000010,
+  B10011001,
   B10100101,
   B10000001,
   B10100101,
-  B10011001,
   B01000010,
   B00111100
 };
@@ -63,6 +63,24 @@ unsigned int straightFace[8] = { //fata lunga
 };
 
 int pRow, pColumn; //randul si coloana curenta a user-ului
+
+int lastHit = 0;   // 0 - cpu n-a nimerit data trecuta; 1 - cpu a nimerit data trecuta, deci se va alege un punct adiacent celui anterior
+
+int cpuPrev[2] = {
+  0,    //  prev row
+  0     //  prev column
+};
+
+int cpuNextPos[8] = {     // pozitiile urmatoare posibile pentru un atac mai inteligent,  valaore initiala: -1
+                          // -1 poate insemna si pozitie indisponibila (afara din tabla de joc / pozitie deja lovita)
+  -1, -1  // upper
+  -1, -1  // to the right 
+  -1, -1  // lower
+  -1, -1  // to the left
+};
+
+int cpuHorizontal = 0;
+int cpuVertical = 0;
 
 //initializeaza valorile random ale unei matrici
 /*
@@ -177,7 +195,6 @@ void setup() {
  */
 void playerBlink(int dev, int row, int column){ 
   delay(150);
-  //TODO play shooting sound here
   for(int i = 0; i < 2; i++){ 
     lc.setLed(dev, row, column, false);
     delay(500);
@@ -196,15 +213,35 @@ void playerShot(int row, int column){
   playerBlink(1, row, column); //efect de blink pentru shot-ul ales
   if(cpuMatrix[row][column] == 0){ //daca am nimerit apa
     lc.setLed(1, row, column, false); //nava netintita, deci se stinge led-ul
-    
-    //TODO play miss sound here
-  }
-  else{
-    //TODO play hit sound here
-    
   }
 
   cpuMatrix[row][column] = 2; //se seteaza pe 2 pentru a stii faptul ca aici s-a mai lovit si a sari peste aceasta zona
+}
+
+void eliminate(){
+  for(int i = 0; i < 8; i += 2){   // daca oricare dintre pozitiile anterior setate depasesc placa de joc, se vor reseta pe -1
+      if(cpuNextPos[i] < 0 || cpuNextPos[i] > 7 || 
+          cpuNextPos[i + 1] < 0 || cpuNextPos[i + 1] > 7 ||
+          playerMatrix[cpuNextPos[i]][cpuNextPos[i + 1]] == 2){
+            cpuNextPos[i] = -1;
+            cpuNextPos[i + 1] = -1;
+       }
+   }
+}
+
+void displayCPU(){
+  Serial.println();
+  Serial.println("cpuPrev: ");
+  for(int i = 0; i < 2; i++){
+    
+    Serial.print(cpuPrev[i]);
+    Serial.print("  ");
+  }
+  Serial.println();
+  Serial.println("cpuNextPos : ");
+  for (int i = 0; i < 8; i++){
+    Serial.println(cpuNextPos[i]);
+  }
 }
 
 // alegerea oponentului
@@ -213,27 +250,188 @@ void playerShot(int row, int column){
  */
 void CPUShot(){ 
   delay(200);
-  int row = random(0,8);
-  delay(200);
-  int column = random(0,8);
+  int row, column, randPos;
+  
+  
+  switch(lastHit){
+    case 0:
+       do{
+        row = random(0,8);
+        delay(200);
+        column = random(0,8);
+       }while(playerMatrix[row][column] == 2); //daca s-a ales deja un loc in care s-a impuscat deja, se genereaza altul
+        /*Serial.println("Before");
+        Serial.print("Row: ");
+        Serial.println(row);
+        Serial.print("Column: ");
+        Serial.println(column);*/
+      //TODO
+        if(playerMatrix[row][column] == 1){
+          lastHit = 1;
+          cpuPrev[0] = row;
+          cpuPrev[1] = column;
+          cpuNextPos[0] = row - 1; cpuNextPos[1] = column;  //upper
+          cpuNextPos[2] = row; cpuNextPos[3] = column + 1;  //to the right
+          cpuNextPos[4] = row + 1; cpuNextPos[5] = column;  //lower
+          cpuNextPos[6] = row; cpuNextPos[7] = column - 1;  //to the left
+          
+        }
+          
+         break;
+     
+     case 1:
+        do{
+          randPos = random(0,4);
+          randPos *= 2; //vom lua doar valorile lui x (multiplu de 2 in matricea cpuNextPos)
+        }while(cpuNextPos[randPos] == -1);
 
-  while(playerMatrix[row][column] == 2){ //daca s-a ales deja un loc in care s-a impuscat deja, se genereaza altul
-    row = random(0,8);
-    column = random(0,8);
-  }
-  
-  
-    playerBlink(0, row, column); //efect de blink pentru alegere
-  /*  
-    //TODO play hit sound here
-  }
-  else{
+        row = cpuNextPos[randPos];
+        column = cpuNextPos[randPos + 1];
+
+        if(playerMatrix[row][column] == 1){
+          lastHit = 2; // TODO check horizontal or vertical
+          if(row - cpuPrev[0] == -1){ //a doua tintire e mai sus de cea anterioara
+            cpuVertical = 1;
+            
+            cpuNextPos[0] = row - 1; cpuNextPos[1] = column;
+            cpuNextPos[2] = -1; cpuNextPos[3] = -1;
+            cpuNextPos[4] = row + 2; cpuNextPos[5] = column;
+            cpuNextPos[6] = -1; cpuNextPos[7] = -1;
+
+          }
+          else if(row - cpuPrev[0] == 1){ //a doua tintire e mai jos de cea anterioara
+            cpuVertical = 1;
+
+            cpuNextPos[0] = row - 2; cpuNextPos[1] = column;
+            cpuNextPos[2] = -1; cpuNextPos[3] = -1;
+            cpuNextPos[4] = row + 1; cpuNextPos[5] = column;
+            cpuNextPos[6] = -1; cpuNextPos[7] = -1;
+          }
+          else if(column - cpuPrev[1] == -1){
+            cpuHorizontal = 1;
+
+            cpuNextPos[0] = -1; cpuNextPos[1] = -1;
+            cpuNextPos[2] = row; cpuNextPos[3] = column + 2;
+            cpuNextPos[4] = -1; cpuNextPos[5] = -1;
+            cpuNextPos[6] = row; cpuNextPos[7] = column - 1;
+          }
+          else if(column - cpuPrev[1] == 1){
+            cpuHorizontal = 1;
+
+            cpuNextPos[0] = -1; cpuNextPos[1] = -1;
+            cpuNextPos[2] = row; cpuNextPos[3] = column + 1;
+            cpuNextPos[4] = -1; cpuNextPos[5] = -1;
+            cpuNextPos[6] = row; cpuNextPos[7] = column - 2;
+
+          }
+
+          
+          cpuPrev[0] = row;
+          cpuPrev[1] = column;
+        }
+
+        break;
     
-    //TODO play miss sound here
-  }*/
+    case 2:
+        do{
+          randPos = random(0,4);
+          randPos *= 2; //vom lua doar valorile lui x (multiplu de 2 in matricea cpuNextPos)
+        }while(cpuNextPos[randPos] == -1);
 
+        row = cpuNextPos[randPos];
+        column = cpuNextPos[randPos + 1];
+
+        if(playerMatrix[row][column] == 1){
+          if(cpuVertical){
+            lastHit = 0;
+            cpuVertical = 0;
+            cpuHorizontal = 0;
+          }
+          else if(cpuHorizontal){
+              lastHit = 3;
+              
+              if(column - cpuPrev[1] == -1){
+
+              cpuNextPos[0] = -1; cpuNextPos[1] = -1;
+              cpuNextPos[2] = row; cpuNextPos[3] = column + 3;
+              cpuNextPos[4] = -1; cpuNextPos[5] = -1;
+              cpuNextPos[6] = row; cpuNextPos[7] = column - 1;
+              }
+              else if(column - cpuPrev[1] == 1){
+                cpuHorizontal = 1;
+    
+                cpuNextPos[0] = -1; cpuNextPos[1] = -1;
+                cpuNextPos[2] = row; cpuNextPos[3] = column + 1;
+                cpuNextPos[4] = -1; cpuNextPos[5] = -1;
+                cpuNextPos[6] = row; cpuNextPos[7] = column - 3;
+    
+            }
+            
+          }
+        }
+        break;
+
+        case 3:
+          do{
+            randPos = random(0,4);
+            randPos *= 2; //vom lua doar valorile lui x (multiplu de 2 in matricea cpuNextPos)
+          }while(cpuNextPos[randPos] == -1);
+          
+          row = cpuNextPos[randPos];
+          column = cpuNextPos[randPos + 1];
+
+
+          Serial.println("State 3");
+          Serial.print("Row: ");
+          Serial.println(row);
+          Serial.print("Column: ");
+          Serial.println(column);
+          if(playerMatrix[row][column] == 1){
+          
+              /*lastHit = 4;
+              
+              if(column - cpuPrev[1] == -1){
+
+              cpuNextPos[0] = -1; cpuNextPos[1] = -1;
+              cpuNextPos[2] = row; cpuNextPos[3] = column + 3;
+              cpuNextPos[4] = -1; cpuNextPos[5] = -1;
+              cpuNextPos[6] = row; cpuNextPos[7] = column - 1;
+              }
+              else if(column - cpuPrev[1] == 1){
+                cpuHorizontal = 1;
+    
+                cpuNextPos[0] = -1; cpuNextPos[1] = -1;
+                cpuNextPos[2] = row; cpuNextPos[3] = column + 1;
+                cpuNextPos[4] = -1; cpuNextPos[5] = -1;
+                cpuNextPos[6] = row; cpuNextPos[7] = column - 3;*/
+
+                lastHit = 0;
+                cpuHorizontal = 0;
+    
+          }
+          
+
+          Serial.print("State: ");
+          Serial.println(lastHit);
+          break;
+      }
+        /*Serial.println("After");
+        Serial.print("Row: ");
+        Serial.println(row);
+        Serial.print("Column: ");
+        Serial.println(column);*/
+  playerBlink(0, row, column); //efect de blink pentru alegere
   playerMatrix[row][column] = 2;    // se seteaza 2 pentru a nu impusca din nou in acelasi loc
+  eliminate();
+  displayCPU();
   lc.setLed(0, row, column, false); //se stinge ledul ales, fie ca a nimerit, fie ca nu
+  Serial.println();
+  Serial.print("last hit state: ");
+  Serial.println(lastHit);
+  Serial.print("cpuVertical: ");
+  Serial.println(cpuVertical);
+  Serial.print("cpuHorizontal: ");
+  Serial.println(cpuHorizontal);
 }
 
 //verifica daca tot randul a fost deja tintit pentru a-l evita
