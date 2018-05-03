@@ -40,7 +40,7 @@ LedControl lc = LedControl(datainPin, clkPin, loadPin, DEVICES);
 int playerMatrix[8][8];
 int cpuMatrix[8][8];
 
-unsigned int smileyFace[8] = { //fata zambareata
+unsigned int smileyFace[8] = { // sir de randuri de biti pentru afisarea unei fete zambarete
   B00111100,
   B01000010,
   B10100101,
@@ -51,7 +51,7 @@ unsigned int smileyFace[8] = { //fata zambareata
   B00111100
 };
 
-unsigned int straightFace[8] = { //fata lunga
+unsigned int straightFace[8] = { // sir de randuri de biti pentru afisarea unei fete lungi
   B00111100,
   B01000010,
   B10100101,
@@ -64,8 +64,18 @@ unsigned int straightFace[8] = { //fata lunga
 
 int pRow, pColumn; //randul si coloana curenta a user-ului
 
-int lastHit = 0;   // 0 - cpu n-a nimerit data trecuta; 1 - cpu a nimerit data trecuta, deci se va alege un punct adiacent celui anterior
 
+/*
+ * lastHit va retine starea in care se afla CPU la un moment dat in timpul jocului
+ * starea 0 - CPU inca nu a lovit nicio nava, se alege o pozitie aleatoare la urmatoarea tura
+ * starea 1 - CPU a lovit o pozitie a navei, se alege o pozitie adiacenta la urmatoarea tura
+ * starea 2 - CPU a lovit inca o pozitie a navei din starea 1, la acest moment se cunoaste daca e nava orizontala sau verticala, si se alege
+ *            urmatoarea miscare in functie de pozitia navei. Daca nava e orizontala, se distruge complet in aceasta stare si se revine la starea 0
+ * starea 3 - CPU mai are de nimerit o pozitie a navei verticale
+ */
+int lastHit = 0;  
+
+// aici se salveaza randul si coloana aleasa de CPU in tura anterioara. Se alege miscarea urmatoare in functie de asta
 int cpuPrev[2] = {
   0,    //  prev row
   0     //  prev column
@@ -79,6 +89,7 @@ int cpuNextPos[8] = {     // pozitiile urmatoare posibile pentru un atac mai int
   -1, -1  // to the left
 };
 
+// valori boolene pentru a identifica daca nava lovita e orizontala sau verticala
 int cpuHorizontal = 0;
 int cpuVertical = 0;
 
@@ -109,6 +120,7 @@ void initializareShips(int matrix[8][8]){
       row1 = random(0,6);
     }
   }
+  //mai intai se genereaza capul navei, dupa care se genereaza restul corpului
   
   for(int i = row1; i < row1 + 3; i++){
     //Serial.println(i);
@@ -121,28 +133,28 @@ void initializareShips(int matrix[8][8]){
 void afisareMatrix(int matrix[8][8]){
   
   
-  for(int i = 0; i < 8; i++){
-    unsigned int binary = 0;  
-    unsigned int aux = 0;
-    for(int j = 0; j < 8; j++){
+  for(int i = 0; i < 8; i++){  //pentru fiecare rand din matrix
+    unsigned int binary = 0;  //se seteaza o valoare binary ce va salva valoarea efectiva a unui rand in functie de combinatia binara a randului
+    for(int j = 0; j < 8; j++){  //in aceasta bucla, pentru fiecare coloana a randului i, se aduna valoarea binara la binary
       //Serial.print(matrix[i][j]);
       
       //Serial.print("Row: ");  Serial.print(i);  Serial.print(": "); Serial.print(binary); Serial.println();   Serial.println();
       if(matrix[i][j] == 1){
-        binary += (matrix[i][j] << (7-j));
+        binary += (matrix[i][j] << (7-j)); //formula de translatie binar -> zecimal (valoarea shiftata la stanga cu 7 - <nr. coloana> pozitii)
       }
     }
     //Serial.println();
     //Serial.print("Row: ");  Serial.print(i);  Serial.print(": "); Serial.print(binary); Serial.println();   Serial.println();
     
     //Serial.print("row: "); Serial.print(i); Serial.print(";");  Serial.print(binary); Serial.println();
-    lc.setRow(0, i , binary);
+    lc.setRow(0, i , binary); //afisarea randului calculat pe matricea de leduri
     
   }
 
   
 }
 
+/*
 void debugCPU(){
   Serial.println("Matrice oponent:");
   for(int i = 0; i < 8; i++){
@@ -152,14 +164,16 @@ void debugCPU(){
     Serial.println();
   }
 }
+*/
 
+//initializarea jocului
 void setup() {
   Serial.begin(9600);
   randomSeed(analogRead(0)); //seed pentru functia random()
   
   for(int i = 0; i < numDevices; i++){
     lc.shutdown(i,false); //dezactivare power save pentru matricea i
-    lc.setIntensity(i,8);
+    lc.setIntensity(i,8); // setare intensitate leduri pentru matricea i (max: 8)
     lc.clearDisplay(i); //opreste toate ledurile
     
   }
@@ -177,7 +191,7 @@ void setup() {
   delay(200);
   afisareMatrix(playerMatrix); //afisarea efectiva a ledurilor
   Serial.println();
-  debugCPU();
+  //debugCPU();
   
 
   //setarea butoanelor ca pini de input
@@ -214,12 +228,13 @@ void playerShot(int row, int column){
   if(cpuMatrix[row][column] == 0){ //daca am nimerit apa
     lc.setLed(1, row, column, false); //nava netintita, deci se stinge led-ul
   }
-
+  //daca s-a lovit nava, atunci ledul ramane aprins din functia anterioara playerBlink()
   cpuMatrix[row][column] = 2; //se seteaza pe 2 pentru a stii faptul ca aici s-a mai lovit si a sari peste aceasta zona
 }
 
+// functie ce elimina valorile imposibile din cpuNextPos. Valori imposibile inseamna coordonate deja lovite sau ce depasesc placa de joc
 void eliminate(){
-  for(int i = 0; i < 8; i += 2){   // daca oricare dintre pozitiile anterior setate depasesc placa de joc, se vor reseta pe -1
+  for(int i = 0; i < 8; i += 2){   // daca oricare dintre pozitiile anterior setate sunt imposibile, se vor reseta pe -1
       if(cpuNextPos[i] < 0 || cpuNextPos[i] > 7 || 
           cpuNextPos[i + 1] < 0 || cpuNextPos[i + 1] > 7 ||
           playerMatrix[cpuNextPos[i]][cpuNextPos[i + 1]] == 2){
@@ -229,6 +244,7 @@ void eliminate(){
    }
 }
 
+/*
 void displayCPU(){
   Serial.println();
   Serial.println("cpuPrev: ");
@@ -243,6 +259,7 @@ void displayCPU(){
     Serial.println(cpuNextPos[i]);
   }
 }
+*/
 
 // alegerea oponentului
 /*
@@ -250,32 +267,36 @@ void displayCPU(){
  */
 void CPUShot(){ 
   delay(200);
-  int row, column, randPos;
+  /*
+   * row - randul curent ales
+   * column - coloana aleasa curent
+   * randPos - o pozitie aleatoare generata cu random()
+   * 
+   */
+  int row, column, randPos; 
   
   
   switch(lastHit){
-    case 0:
-       do{
+    case 0:   //starea 0, nicio portiune de nava nu a fost lovita
+       do{    //se genereaza o pozitie aleatoare nelovita anterior
         row = random(0,8);
         delay(200);
         column = random(0,8);
        }while(playerMatrix[row][column] == 2); //daca s-a ales deja un loc in care s-a impuscat deja, se genereaza altul
-        /*Serial.println("Before");
-        Serial.print("Row: ");
-        Serial.println(row);
-        Serial.print("Column: ");
-        Serial.println(column);*/
-      //TODO
-        if(playerMatrix[row][column] == 1){
-          lastHit = 1;
-          cpuPrev[0] = row;
+       
+        if(playerMatrix[row][column] == 1){ // daca s-a lovit o nava
+          lastHit = 1; // se trece in starea 1
+          // se salveaza row si column in cpuPrev
+          cpuPrev[0] = row;  
           cpuPrev[1] = column;
 
+          // daca nava verticala nu a fost inca distrusa, cpuNextPos ia valorile de mai sus si de mai jos de ledul curent lovit
           if(cpuVertical != -1){
             cpuNextPos[0] = row - 1; cpuNextPos[1] = column;  //upper
             cpuNextPos[4] = row + 1; cpuNextPos[5] = column;  //lower
           }
-
+          
+          //daca nava orizontala nu a fost inca distrusa, cpuNextPos ia valorile din stanga si din dreapta ledului curent lovit
           if(cpuHorizontal != -1){
             cpuNextPos[2] = row; cpuNextPos[3] = column + 1;  //to the right
           
@@ -285,20 +306,23 @@ void CPUShot(){
           
          break;
      
-     case 1:
-        do{
+     case 1:    // starea 1
+        do{     //se genereaza o pozitie aleatoare din cele 4 pozitii din cpuNextPos
           randPos = random(0,4);
           randPos *= 2; //vom lua doar valorile lui x (multiplu de 2 in matricea cpuNextPos)
-        }while(cpuNextPos[randPos] == -1);
+        }while(cpuNextPos[randPos] == -1); // cat timp aceasta este posibila
 
+        // se seteaza row si column in functie de pozitia generata
         row = cpuNextPos[randPos];
         column = cpuNextPos[randPos + 1];
 
+        // daca pozitia aleasa este nava 
         if(playerMatrix[row][column] == 1){
-          lastHit = 2; // TODO check horizontal or vertical
-          if(row - cpuPrev[0] == -1){ //a doua tintire e mai sus de cea anterioara
-            cpuVertical = 1;
-            
+          lastHit = 2; // se trece in starea 2
+          if(row - cpuPrev[0] == -1){ // daca a doua tintire e mai sus de cea anterioara
+            cpuVertical = 1;  // nava e verticala
+
+            // pentru cpuNextPos, se aleg doar pozitiile verticale posibile, cele orizontale se seteaza pe -1
             cpuNextPos[0] = row - 1; cpuNextPos[1] = column;
             cpuNextPos[2] = -1; cpuNextPos[3] = -1;
             cpuNextPos[4] = row + 2; cpuNextPos[5] = column;
@@ -306,23 +330,24 @@ void CPUShot(){
 
           }
           else if(row - cpuPrev[0] == 1){ //a doua tintire e mai jos de cea anterioara
-            cpuVertical = 1;
+            cpuVertical = 1; // la fel ca mai sus, doar ca se pun alte valori in cpuNextPos
 
             cpuNextPos[0] = row - 2; cpuNextPos[1] = column;
             cpuNextPos[2] = -1; cpuNextPos[3] = -1;
             cpuNextPos[4] = row + 1; cpuNextPos[5] = column;
             cpuNextPos[6] = -1; cpuNextPos[7] = -1;
           }
-          else if(column - cpuPrev[1] == -1){
-            cpuHorizontal = 1;
+          else if(column - cpuPrev[1] == -1){   // daca a doua tintire e la stanga celei anterioare
+            cpuHorizontal = 1; // nava e orizontala
 
+            // se aleg doar pozitiile orizontale, restul se seteaza pe -1
             cpuNextPos[0] = -1; cpuNextPos[1] = -1;
             cpuNextPos[2] = row; cpuNextPos[3] = column + 2;
             cpuNextPos[4] = -1; cpuNextPos[5] = -1;
             cpuNextPos[6] = row; cpuNextPos[7] = column - 1;
           }
-          else if(column - cpuPrev[1] == 1){
-            cpuHorizontal = 1;
+          else if(column - cpuPrev[1] == 1){ // daca a doua tintire e la dreapta celei anterioare
+            cpuHorizontal = 1;  // analog 
 
             cpuNextPos[0] = -1; cpuNextPos[1] = -1;
             cpuNextPos[2] = row; cpuNextPos[3] = column + 1;
@@ -331,14 +356,14 @@ void CPUShot(){
 
           }
 
-          
+          // in final, se seteaza cpuPrev cu valorile curente
           cpuPrev[0] = row;
           cpuPrev[1] = column;
         }
 
         break;
     
-    case 2:
+    case 2:   //starea 2
         do{
           randPos = random(0,4);
           randPos *= 2; //vom lua doar valorile lui x (multiplu de 2 in matricea cpuNextPos)
@@ -347,14 +372,15 @@ void CPUShot(){
         row = cpuNextPos[randPos];
         column = cpuNextPos[randPos + 1];
 
-        if(playerMatrix[row][column] == 1){
-          if(cpuVertical){
+        if(playerMatrix[row][column] == 1){   //daca valoarea generata e nava
+          if(cpuVertical){  // daca a fost nava verticala, aceasta este distrusa complet, deci se revine la starea 0
             lastHit = 0;
-            cpuVertical = -1;
+            cpuVertical = -1;   // se seteaza nava verticala pe imposibil pentru a nu mai genera valori in cpuNextPos pentru aceasta
           }
-          else if(cpuHorizontal){
-              lastHit = 3;
-              
+          else if(cpuHorizontal){   // daca e nava orizontala
+              lastHit = 3;  // se trece in starea 3
+
+              // se aleg valori pentru cpuNextPos in functie de coloana curenta si cea anterioara
               if(column - cpuPrev[1] == -1){
 
               cpuNextPos[0] = -1; cpuNextPos[1] = -1;
@@ -376,7 +402,8 @@ void CPUShot(){
         }
         break;
 
-        case 3:
+        case 3:   // starea 3
+          // se genereaza din ultimele doua pozitii posibile
           do{
             randPos = random(0,4);
             randPos *= 2; //vom lua doar valorile lui x (multiplu de 2 in matricea cpuNextPos)
@@ -384,59 +411,20 @@ void CPUShot(){
           
           row = cpuNextPos[randPos];
           column = cpuNextPos[randPos + 1];
-
-
-          Serial.println("State 3");
-          Serial.print("Row: ");
-          Serial.println(row);
-          Serial.print("Column: ");
-          Serial.println(column);
+          // daca s-a nimerit, starea se reseteaza pe 0, si nava orizontala se seteaza pe imposibil
           if(playerMatrix[row][column] == 1){
-          
-              /*lastHit = 4;
-              
-              if(column - cpuPrev[1] == -1){
-
-              cpuNextPos[0] = -1; cpuNextPos[1] = -1;
-              cpuNextPos[2] = row; cpuNextPos[3] = column + 3;
-              cpuNextPos[4] = -1; cpuNextPos[5] = -1;
-              cpuNextPos[6] = row; cpuNextPos[7] = column - 1;
-              }
-              else if(column - cpuPrev[1] == 1){
-                cpuHorizontal = 1;
-    
-                cpuNextPos[0] = -1; cpuNextPos[1] = -1;
-                cpuNextPos[2] = row; cpuNextPos[3] = column + 1;
-                cpuNextPos[4] = -1; cpuNextPos[5] = -1;
-                cpuNextPos[6] = row; cpuNextPos[7] = column - 3;*/
-
                 lastHit = 0;
                 cpuHorizontal = -1;
     
           }
-          
-
-          Serial.print("State: ");
-          Serial.println(lastHit);
+         
           break;
       }
-        /*Serial.println("After");
-        Serial.print("Row: ");
-        Serial.println(row);
-        Serial.print("Column: ");
-        Serial.println(column);*/
+       
   playerBlink(0, row, column); //efect de blink pentru alegere
   playerMatrix[row][column] = 2;    // se seteaza 2 pentru a nu impusca din nou in acelasi loc
-  eliminate();
-  displayCPU();
+  eliminate();  // se elimina valorile imposibile din cpuNextPos
   lc.setLed(0, row, column, false); //se stinge ledul ales, fie ca a nimerit, fie ca nu
-  Serial.println();
-  Serial.print("last hit state: ");
-  Serial.println(lastHit);
-  Serial.print("cpuVertical: ");
-  Serial.println(cpuVertical);
-  Serial.print("cpuHorizontal: ");
-  Serial.println(cpuHorizontal);
 }
 
 //verifica daca tot randul a fost deja tintit pentru a-l evita
@@ -517,7 +505,7 @@ void moveDown(){
   
 }
 
-//afisare fete de final la infinit pana la apasarea butonului reset
+//afisare fete de final la infinit pana la apasarea butonului reset (la sfarsitul jocului)
 /*
  *  face1 - fata de final a jucatorului
  *  face2 - fata de final cpu-ului
