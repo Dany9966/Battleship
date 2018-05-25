@@ -18,7 +18,7 @@ int numDevices = 2;
 /*
  * Butonul ce va misca navele spre dreapta se va plasa pe pinul 2
  * Cel pentru a muta navele in jos este plasat pe pinul 3
- * Butonul cu care actionam va fi plasat la pinul 4
+ * Butonul cu care actionam va fi plasat la pinul 5
  * 
  */
 
